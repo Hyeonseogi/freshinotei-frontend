@@ -1,6 +1,38 @@
 import React from 'react';
 import { getUrgencyStyles } from '../utils/colorMapper';
 
+// 💡 컴포넌트 외부에 선언하여 렌더링 성능 최적화
+const specificIcons = {
+  // 채소
+  "양파": "🧅", "파": "🧅", "마늘": "🧄", "당근": "🥕", "토마토": "🍅", 
+  "버섯": "🍄", "감자": "🥔", "고구마": "🍠", "옥수수": "🌽", "고추": "🌶️", 
+  "깻잎": "🌿", "양상추": "🥬",
+  // 과일
+  "사과": "🍎", "바나나": "🍌", "포도": "🍇", "수박": "🍉", "딸기": "🍓", "레몬": "🍋",
+  // 단백질/유제품
+  "계란": "🥚", "달걀": "🥚", "우유": "🥛", "치즈": "🧀", "닭가슴살": "🍗", "돼지고기": "🥓",
+  // 기타/가공
+  "빵": "🍞", "밥": "🍚", "만두": "🥟", "음료수": "🧃", "맥주": "🍺"
+};
+
+const categoryIcons = {
+  "채소": "🥬",
+  "과일": "🍎",
+  "육류": "🥩",
+  "수산물": "🐟",
+  "유제품": "🥛",
+  "곡류": "🍚",
+  "기타": "📦"
+};
+
+// 이름 기반 매칭 후 없으면 카테고리 기본값 반환
+const getIcon = (name, category) => {
+  for (const key in specificIcons) {
+    if (name.includes(key)) return specificIcons[key];
+  }
+  return categoryIcons[category] || "📦";
+};
+
 const FridgeMainScreen = ({ fridgeItems, onGoToCamera }) => {
   // 백엔드에서 데이터가 아직 안 왔을 때를 대비한 안전 장치
   const itemsToRender = Array.isArray(fridgeItems) ? fridgeItems : [];
@@ -44,25 +76,15 @@ const FridgeMainScreen = ({ fridgeItems, onGoToCamera }) => {
 
         <div className="flex flex-col gap-4">
           {itemsToRender.map((item) => {
-            // 백엔드 데이터 구조에 맞게 데이터 추출
             const { ingredient, daysLeft, urgency } = item;
-            // colorMapper를 이용해 색상 및 텍스트 결정
             const styles = getUrgencyStyles(urgency);
-
-            // 임시 아이콘 (카테고리별로 다르게 넣을 수도 있습니다)
-            const getIcon = (category) => {
-              if (category === '채소') return '🥬';
-              if (category === '과일') return '🍎';
-              if (category === '유제품') return '🥛';
-              if (category === '육류') return '🥩';
-              return '📦';
-            };
 
             return (
               <div key={ingredient.id} className={`bg-white rounded-[16px] shadow-sm p-4 flex items-center justify-between border-l-[6px] relative ${styles.border}`}>
                 <div className="flex items-center gap-4">
+                  {/* 💡 카테고리와 이름을 모두 넘겨서 가장 적합한 아이콘을 찾음 */}
                   <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-2xl">
-                    {getIcon(ingredient.category)}
+                    {getIcon(ingredient.name, ingredient.category)}
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-800">{ingredient.name}</h3>
@@ -86,7 +108,6 @@ const FridgeMainScreen = ({ fridgeItems, onGoToCamera }) => {
 
       {/* 하단 탭 바 */}
       <nav className="absolute bottom-0 w-full h-[72px] bg-white border-t border-gray-100 flex justify-between items-center px-6 pb-2 z-10">
-        
         <div 
           onClick={() => alert('💡 아이디어톤 프로토타입: [홈] 화면은 현재 준비 중입니다.')} 
           className="flex flex-col items-center gap-1 text-gray-400 w-1/4 cursor-pointer hover:text-[#5E9B56] transition-colors"
@@ -115,7 +136,6 @@ const FridgeMainScreen = ({ fridgeItems, onGoToCamera }) => {
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
           <span className="text-[10px] font-medium">마이</span>
         </div>
-
       </nav>
     </div>
   );
