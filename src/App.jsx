@@ -53,7 +53,7 @@ function App() {
   };
 
   return (
-    <div className="bg-gray-800 min-h-screen flex items-center justify-center font-sans">
+    <div className="bg-gray-800 min-h-[100dvh] flex items-center justify-center font-sans">
       {/* 눈에 보이지 않지만, 영수증 이미지를 선택하게 해주는 핵심 input */}
       <input 
         type="file" 
@@ -63,7 +63,7 @@ function App() {
         accept="image/*"
       />
 
-      <div className="w-full max-w-[400px] h-screen bg-white overflow-hidden shadow-2xl relative">
+      <div className="w-full max-w-[400px] h-[100dvh] bg-white overflow-hidden shadow-2xl relative">
         {currentScreen === 'fridge' && (
           <FridgeMainScreen 
             fridgeItems={fridgeData} 

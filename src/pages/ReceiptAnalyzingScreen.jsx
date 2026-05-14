@@ -46,7 +46,7 @@ const ReceiptAnalyzingScreen = ({ tempScannedItems = [] }) => {
   }, [analyzingSteps.length]);
 
   return (
-    <div className="w-full max-w-[400px] min-h-screen mx-auto bg-[#F8F6F0] relative font-sans shadow-lg overflow-hidden flex flex-col">
+    <div className="w-full max-w-[400px] min-h-full mx-auto bg-[#F8F6F0] relative font-sans shadow-lg overflow-hidden flex flex-col">
       {/* 상단 헤더 */}
       <header className="px-5 pt-10 pb-4 flex justify-between items-center bg-[#F8F6F0] z-10">
         <div className="text-xl font-extrabold tracking-tight">

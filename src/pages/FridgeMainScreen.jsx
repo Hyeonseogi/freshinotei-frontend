@@ -11,7 +11,7 @@ const FridgeMainScreen = ({ fridgeItems, onGoToCamera }) => {
   ).length;
 
   return (
-    <div className="w-full max-w-[400px] h-screen mx-auto bg-[#F8F6F0] relative font-sans flex flex-col">
+    <div className="w-full max-w-[400px] h-full mx-auto bg-[#F8F6F0] relative font-sans flex flex-col">
       {/* 상단 네비게이션 */}
       <header className="px-6 pt-12 pb-2 flex justify-between items-center">
         <h1 className="text-xl font-extrabold tracking-tight">내 냉장고</h1>
