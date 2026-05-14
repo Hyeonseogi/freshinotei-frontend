@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-// ✅ 부모(App.jsx)로부터 임시 스캔 데이터를 받을 수 있도록 props 추가
+// ✅ tempScannedItems: [{ name: "깻잎", qty: "1봉" }, { name: "우유", qty: "1팩" }, ...] 형태의 실제 데이터
 const ReceiptAnalyzingScreen = ({ tempScannedItems = [] }) => {
   const [stepIndex, setStepIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  
+  // ✅ 화면에 실시간으로 '나타난' 아이템들만 담는 상태
+  const [animatedItems, setAnimatedItems] = useState([]);
+  const displayedCount = useRef(0);
 
   const analyzingSteps = [
     "영수증 텍스트 추출 중...",
@@ -12,83 +16,79 @@ const ReceiptAnalyzingScreen = ({ tempScannedItems = [] }) => {
     "유통기한 예측 중..."
   ];
 
-  // ✅ 부모로부터 데이터가 오면 그것을 보여주고, 없으면 시각적 효과를 위해 기본 임시 데이터 표시
-  const displayItems = tempScannedItems.length > 0 
-    ? tempScannedItems.map(item => `${item.name} ${item.qty}`) 
-    : ["목록 추출 중...", "분석 준비..."];
-
   useEffect(() => {
-    // App.jsx에서 setTimeout을 3500(3.5초)으로 설정했으므로, 
-    // 프로그레스 바도 그 시간에 맞춰 100%가 되도록 duration을 3500으로 맞춥니다.
     const totalDuration = 3500; 
     const intervalTime = 100;
     const stepDuration = totalDuration / analyzingSteps.length;
 
-    const timer = setInterval(() => {
+    // 1. 프로그레스 바 및 단계 메시지 타이머
+    const progressTimer = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
-          clearInterval(timer);
+          clearInterval(progressTimer);
           return 100;
         }
-        
         const currentElapsedTime = (prev / 100) * totalDuration;
         const currentStep = Math.min(
           Math.floor(currentElapsedTime / stepDuration),
           analyzingSteps.length - 1
         );
         setStepIndex(currentStep);
-
         return prev + (100 / (totalDuration / intervalTime));
       });
     }, intervalTime);
 
-    return () => clearInterval(timer);
-  }, [analyzingSteps.length]);
+    // ✅ 2. 실제 데이터(tempScannedItems)를 하나씩 화면에 추가하는 로직
+    // 데이터가 들어온 시점부터 0.5초 간격으로 하나씩animatedItems에 추가합니다.
+    if (tempScannedItems.length > 0) {
+      const itemTimer = setInterval(() => {
+        if (displayedCount.current < tempScannedItems.length) {
+          const nextItem = tempScannedItems[displayedCount.current];
+          // "이름 + 수량" 형태로 변환 (수량이 없으면 이름만)
+          const itemText = nextItem.qty ? `${nextItem.name} ${nextItem.qty}` : nextItem.name;
+          
+          setAnimatedItems(prev => [...prev, itemText]);
+          displayedCount.current += 1;
+        } else {
+          clearInterval(itemTimer);
+        }
+      }, 500); // 0.5초 간격으로 실제 데이터 출력
+
+      return () => {
+        clearInterval(progressTimer);
+        clearInterval(itemTimer);
+      };
+    }
+
+    return () => clearInterval(progressTimer);
+  }, [tempScannedItems]); // 실제 인식 데이터가 변경/입력될 때마다 이펙트 실행
 
   return (
     <div className="w-full max-w-[400px] min-h-full mx-auto bg-[#F8F6F0] relative font-sans shadow-lg overflow-hidden flex flex-col">
-      {/* 상단 헤더 */}
       <header className="px-5 pt-10 pb-4 flex justify-between items-center bg-[#F8F6F0] z-10">
         <div className="text-xl font-extrabold tracking-tight">
           <span className="text-[#4CAF50]">Freshi</span>
           <span className="text-[#FF9800]">Notei</span>
         </div>
-        <div className="flex items-center gap-3 text-gray-800">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-          </svg>
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-        </div>
       </header>
 
-      {/* 메인 콘텐츠 영역 */}
       <main className="flex-1 px-6 pt-10 flex flex-col items-center">
         {/* 스캐닝 애니메이션 원형 영역 */}
-        <div className="relative w-48 h-48 mb-10 flex items-center justify-center">
+        <div className="relative w-44 h-44 mb-10 flex items-center justify-center">
           <div className="absolute inset-0 rounded-full border-[5px] border-[#5E9B56] opacity-90 shadow-[0_0_25px_rgba(94,155,86,0.3)] animate-pulse"></div>
-          {/* 영수증 아이콘 */}
-          <div className="relative w-16 h-20 bg-white rounded flex flex-col shadow-sm border border-gray-100 p-2">
+          <div className="relative w-16 h-20 bg-white rounded flex flex-col shadow-sm border border-gray-100 p-2 overflow-hidden">
             <div className="w-full h-1 bg-[#5E9B56] mb-3 opacity-80 rounded-full"></div>
             <div className="w-3/4 h-1 bg-[#FF9800] mb-2 opacity-80 rounded-full"></div>
             <div className="w-full h-1 bg-[#5E9B56] mb-2 opacity-80 rounded-full"></div>
             <div className="w-1/2 h-1 bg-gray-300 mb-2 rounded-full"></div>
-            <div className="absolute -bottom-2 left-0 w-full h-2 flex justify-between">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[4px] border-transparent border-t-white"></div>
-              ))}
-            </div>
+            <div className="absolute top-0 left-0 w-full h-1 bg-[#5E9B56] shadow-[0_0_8px_#5E9B56] animate-scan-line"></div>
           </div>
-          {/* 스캐닝 레이저 효과 */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-1 bg-[#84cc7a] shadow-[0_0_12px_#84cc7a] animate-[bounce_1.5s_infinite]"></div>
         </div>
 
-        {/* 안내 텍스트 */}
         <h1 className="text-[22px] font-bold text-gray-800 mb-3 text-center tracking-tight">
           AI가 영수증을 분석하고 있어요
         </h1>
-        <p className="text-[#6B7280] text-[15px] font-medium mb-12 h-6 transition-all duration-300">
+        <p className="text-[#6B7280] text-[15px] font-medium mb-12 h-6">
           {analyzingSteps[stepIndex]}
         </p>
 
@@ -96,7 +96,7 @@ const ReceiptAnalyzingScreen = ({ tempScannedItems = [] }) => {
         <div className="w-full mb-8">
           <div className="h-3 w-full bg-[#E5E0D8] rounded-full overflow-hidden">
             <div 
-              className="h-full bg-[#5E9B56] rounded-full transition-all duration-300 ease-out"
+              className="h-full bg-[#5E9B56] rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             ></div>
           </div>
@@ -106,36 +106,46 @@ const ReceiptAnalyzingScreen = ({ tempScannedItems = [] }) => {
           </div>
         </div>
 
-        {/* 현재까지 인식된 항목 카드 */}
-        <div className="w-full bg-white rounded-[20px] p-5 mb-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+        {/* ✅ 실제 인식된 항목 카드 (실제 데이터 실시간 출력) */}
+        <div className="w-full bg-white rounded-[20px] p-5 mb-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)] min-h-[140px]">
           <p className="text-[13px] text-gray-500 font-medium mb-3">현재까지 인식된 항목</p>
           <div className="flex flex-wrap gap-2.5">
-            {displayItems.map((item, index) => (
-              <span 
-                key={index} 
-                className="px-4 py-2 bg-[#FAF8F3] text-gray-700 text-sm rounded-full font-medium"
-              >
-                {item}
-              </span>
-            ))}
+            {animatedItems.length > 0 ? (
+              animatedItems.map((item, index) => (
+                <span 
+                  key={index} 
+                  className="px-4 py-2 bg-[#FAF8F3] text-gray-700 text-sm rounded-full font-medium animate-pop-in"
+                >
+                  {item}
+                </span>
+              ))
+            ) : (
+              <span className="text-sm text-gray-300 italic">항목을 추출하고 있습니다...</span>
+            )}
           </div>
         </div>
 
-        {/* 하단 AI 자동 분석 인포 카드 */}
+        {/* 하단 인포 카드 */}
         <div className="w-full bg-[#F3F8F3] rounded-[20px] p-4 flex items-start gap-3 border border-[#E8F3E8]">
-          <div className="text-[#5E9B56] mt-0.5 shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-[14px] font-bold text-gray-800 mb-1">AI 자동 분석</h3>
-            <p className="text-[12px] text-gray-500 leading-relaxed tracking-tight break-keep">
-              유통기한이 없는 식재료는 AI가 평균 소비기한을 예측해드려요
-            </p>
-          </div>
+          <div className="text-[#5E9B56] mt-0.5 shrink-0">💡</div>
+          <p className="text-[12px] text-gray-500 leading-relaxed tracking-tight break-keep">
+            인식된 식재료는 내 냉장고에 카테고리별로 자동 분류되어 저장됩니다.
+          </p>
         </div>
       </main>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes pop-in {
+          0% { opacity: 0; transform: scale(0.8); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes scan-line {
+          0% { top: 0; }
+          100% { top: 100%; }
+        }
+        .animate-pop-in { animation: pop-in 0.3s ease-out forwards; }
+        .animate-scan-line { animation: scan-line 1.5s linear infinite; }
+      `}} />
     </div>
   );
 };
