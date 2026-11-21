@@ -4,15 +4,20 @@ import CameraScreen from './pages/CameraScreen';
 import OcrResultScreen from './pages/OcrResultScreen';
 import FridgeMainScreen from './pages/FridgeMainScreen';
 import ReceiptAnalyzingScreen from './pages/ReceiptAnalyzingScreen';
-import NotificationScreen from './pages/NotificationScreen'; 
+import NotificationScreen from './pages/NotificationScreen';
+import RecipeScreen from './pages/RecipeScreen';
 import { backendApi } from './api';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState('fridge');
   const [fridgeData, setFridgeData] = useState([]);
   const [scannedResult, setScannedResult] = useState(null);
-  
+  const [deletingId, setDeletingId] = useState(null);
+  const [recipeState, setRecipeState] = useState({ status: 'loading', recipes: [], errorMessage: '' });
+
   const fileInputRef = useRef(null);
+  // 레시피 요청 도중 화면을 나가거나 다시 요청하면, 늦게 도착한 이전 응답은 버립니다.
+  const recipeRequestRef = useRef(0);
 
   const loadFridgeData = async () => {
     try {
@@ -41,7 +46,47 @@ function App() {
     }
   };
 
+  // 개별 삭제: DELETE /ingredients/{id} 후 목록을 다시 불러옵니다.
+  const handleDeleteItem = async (ingredient) => {
+    if (!window.confirm(`${ingredient.name}을(를) 냉장고에서 뺄까요?`)) return;
+
+    setDeletingId(ingredient.id);
+    try {
+      await backendApi.deleteIngredient(ingredient.id);
+      await loadFridgeData();
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const requestRecipes = async () => {
+    const requestId = ++recipeRequestRef.current;
+    setRecipeState({ status: 'loading', recipes: [], errorMessage: '' });
+
+    try {
+      const recipes = await backendApi.recommendRecipes();
+      if (requestId !== recipeRequestRef.current) return;
+      setRecipeState({ status: 'done', recipes, errorMessage: '' });
+    } catch (error) {
+      if (requestId !== recipeRequestRef.current) return;
+      setRecipeState({ status: 'error', recipes: [], errorMessage: error.message });
+    }
+  };
+
+  const handleGoToRecipes = () => {
+    setCurrentScreen('recipes');
+    requestRecipes();
+  };
+
+  const handleCloseRecipes = () => {
+    recipeRequestRef.current += 1;
+    setCurrentScreen('fridge');
+  };
+
   const handleGoToCameraScreen = () => {
+    recipeRequestRef.current += 1;
     setCurrentScreen('camera');
   };
 
@@ -64,8 +109,11 @@ function App() {
       setScannedResult(result);
       setCurrentScreen('ocr');
     } catch (error) {
-      alert("AI 분석 중 오류가 발생했습니다. 백엔드 서버가 켜져 있는지 확인해주세요!");
+      alert(error.message || "AI 분석 중 오류가 발생했습니다. 백엔드 서버가 켜져 있는지 확인해주세요!");
       setCurrentScreen('fridge');
+    } finally {
+      // 같은 사진을 다시 골라도 onChange가 동작하도록 선택값을 비웁니다.
+      e.target.value = '';
     }
   };
 
@@ -84,8 +132,22 @@ function App() {
           <FridgeMainScreen 
             fridgeItems={fridgeData} 
             onGoToCamera={handleGoToCameraScreen} 
-            onDeleteAll={handleDeleteAll} // ✅ 삭제 프롭스 이름과 연결 함수 변경
+            onDeleteAll={handleDeleteAll}
+            onDeleteItem={handleDeleteItem}
+            deletingId={deletingId}
             onGoToNotifications={handleGoToNotifications}
+            onGoToRecipes={handleGoToRecipes}
+          />
+        )}
+
+        {currentScreen === 'recipes' && (
+          <RecipeScreen
+            status={recipeState.status}
+            recipes={recipeState.recipes}
+            errorMessage={recipeState.errorMessage}
+            onRetry={requestRecipes}
+            onClose={handleCloseRecipes}
+            onGoToCamera={handleGoToCameraScreen}
           />
         )}
         
