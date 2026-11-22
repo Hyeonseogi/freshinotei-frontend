@@ -22,16 +22,6 @@ const getIcon = (name = "", category = "") => {
   return categoryIcons[category] || "📦";
 };
 
-// ✅ AI 데모용 스마트 예측 로직: 백엔드에서 D-Day를 주지 않을 때 카테고리 기반으로 자동 계산
-const getFallbackDays = (category) => {
-  if (category === '채소') return 7;
-  if (category === '과일') return 5;
-  if (category === '육류') return 3;
-  if (category === '수산물') return 2;
-  if (category === '유제품') return 10;
-  return 14; // 기타 가공식품
-};
-
 const OcrResultScreen = ({ recognizedItems, onSave }) => {
   const itemsToRender = Array.isArray(recognizedItems) ? recognizedItems : [];
 
@@ -53,14 +43,10 @@ const OcrResultScreen = ({ recognizedItems, onSave }) => {
         <div className="flex flex-col gap-4">
           {itemsToRender.map((item, index) => {
             
-            // ✅ 핵심 로직: 백엔드 데이터가 있으면 쓰고, 없으면 카테고리를 보고 프론트에서 임시로 만들어냄
-            const safeDaysLeft = (item.daysLeft !== undefined && item.daysLeft !== null) 
-              ? item.daysLeft 
-              : getFallbackDays(item.category);
-              
-            // 긴급도 역시 며칠 남았는지에 따라 자동 세팅
-            const safeUrgency = item.urgency || (safeDaysLeft <= 3 ? 'URGENT' : safeDaysLeft <= 7 ? 'SOON' : 'NORMAL');
-            const styles = getUrgencyStyles(safeUrgency);
+            // 남은 일수(daysLeft)와 긴급도(urgency)는 스캔 응답에 들어 있는 값을 그대로 씁니다.
+            const { daysLeft, urgency } = item;
+            const hasDaysLeft = typeof daysLeft === 'number';
+            const styles = getUrgencyStyles(urgency);
 
             return (
               <div key={item.id || index} className={`bg-white rounded-[16px] shadow-sm p-4 flex items-center justify-between border-l-[6px] ${styles.border}`}>
@@ -77,9 +63,8 @@ const OcrResultScreen = ({ recognizedItems, onSave }) => {
                 <div className="text-right">
                   <p className="text-[11px] text-gray-400 font-medium">유통기한</p>
                   
-                  {/* ✅ 이제 undefined 대신 완벽하게 계산된 D-Day가 나옵니다! */}
                   <p className="text-base font-semibold text-gray-700">
-                    {safeDaysLeft < 0 ? `D+${Math.abs(safeDaysLeft)}` : `D-${safeDaysLeft}`}
+                    {!hasDaysLeft ? '-' : daysLeft < 0 ? `D+${Math.abs(daysLeft)}` : `D-${daysLeft}`}
                   </p>
                   
                   <div className={`mt-1 inline-block px-2.5 py-0.5 text-xs font-bold text-white rounded-full ${styles.badge}`}>

@@ -16,6 +16,11 @@ const categoryIcons = {
   "유제품": "🥛", "곡류": "🍚", "기타": "📦"
 };
 
+// "전체 비우기" 버튼은 주소에 ?admin=1 이 붙었을 때만 보입니다 (발표용 폰에서 시연 초기화용).
+// 냉장고 데이터를 접속한 모든 사람이 같이 쓰기 때문에, 일반 관람객 화면에서는 숨깁니다.
+// 화면에서 숨기기만 한 것이라 보안 장치는 아닙니다(주소를 아는 사람은 누구나 볼 수 있음).
+const SHOW_DELETE_ALL = new URLSearchParams(window.location.search).get('admin') === '1';
+
 const getIcon = (name, category) => {
   for (const key in specificIcons) {
     if (name.includes(key)) return specificIcons[key];
@@ -23,8 +28,15 @@ const getIcon = (name, category) => {
   return categoryIcons[category] || "📦";
 };
 
-// ✅ onDelete 대신 onDeleteAll 프롭스를 받습니다.
-const FridgeMainScreen = ({ fridgeItems, onGoToCamera, onDeleteAll, onGoToNotifications }) => {
+const FridgeMainScreen = ({
+  fridgeItems,
+  onGoToCamera,
+  onDeleteAll,
+  onDeleteItem,
+  deletingId,
+  onGoToNotifications,
+  onGoToRecipes,
+}) => {
   const itemsToRender = Array.isArray(fridgeItems) ? fridgeItems : [];
   
   const expiringCount = itemsToRender.filter(item => 
@@ -58,6 +70,21 @@ const FridgeMainScreen = ({ fridgeItems, onGoToCamera, onDeleteAll, onGoToNotifi
         {expiringCount > 0 && (
           <p className="text-[#C95252] text-sm mt-1 font-medium">{expiringCount}개가 곧 상해요</p>
         )}
+
+        {/* 레시피 추천 버튼 */}
+        <button
+          onClick={onGoToRecipes}
+          className="mt-4 w-full flex items-center justify-between bg-[#5E9B56] hover:bg-[#4d8246] active:scale-[0.99] transition text-white rounded-[16px] px-5 py-4 shadow-md"
+        >
+          <span className="flex items-center gap-3 text-left">
+            <span className="text-2xl">🍳</span>
+            <span>
+              <span className="block text-base font-bold">레시피 추천받기</span>
+              <span className="block text-xs text-white/80 mt-0.5">곧 상하는 재료부터 쓰는 요리를 골라드려요</span>
+            </span>
+          </span>
+          <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+        </button>
       </div>
 
       <main className="flex-1 overflow-y-auto px-6 pb-24">
@@ -65,7 +92,7 @@ const FridgeMainScreen = ({ fridgeItems, onGoToCamera, onDeleteAll, onGoToNotifi
         {/* ✅ 정렬 텍스트와 '전체 비우기' 버튼 나란히 배치 */}
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-medium text-gray-500">긴급 소비 순으로 정렬</span>
-          {itemsToRender.length > 0 && (
+          {SHOW_DELETE_ALL && itemsToRender.length > 0 && (
             <button 
               onClick={onDeleteAll}
               className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-[#C95252] transition-colors"
@@ -83,9 +110,6 @@ const FridgeMainScreen = ({ fridgeItems, onGoToCamera, onDeleteAll, onGoToNotifi
 
             return (
               <div key={ingredient.id} className={`bg-white rounded-[16px] shadow-sm p-4 flex items-center justify-between border-l-[6px] relative ${styles.border}`}>
-                
-                {/* ❌ 개별 삭제 X 버튼 제거됨 */}
-
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-2xl">
                     {getIcon(ingredient.name, ingredient.category)}
@@ -95,14 +119,25 @@ const FridgeMainScreen = ({ fridgeItems, onGoToCamera, onDeleteAll, onGoToNotifi
                     <p className="text-sm text-gray-500">{ingredient.category}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-[11px] text-gray-400 font-medium">남은 기한</p>
-                  <p className="text-base font-semibold text-gray-700">
-                    {daysLeft < 0 ? `D+${Math.abs(daysLeft)}` : `D-${daysLeft}`}
-                  </p>
-                  <div className={`mt-1 inline-block px-2.5 py-0.5 text-xs font-bold text-white rounded-full ${styles.badge}`}>
-                    {styles.text}
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-[11px] text-gray-400 font-medium">남은 기한</p>
+                    <p className="text-base font-semibold text-gray-700">
+                      {daysLeft < 0 ? `D+${Math.abs(daysLeft)}` : `D-${daysLeft}`}
+                    </p>
+                    <div className={`mt-1 inline-block px-2.5 py-0.5 text-xs font-bold text-white rounded-full ${styles.badge}`}>
+                      {styles.text}
+                    </div>
                   </div>
+                  {/* 개별 삭제 버튼 */}
+                  <button
+                    onClick={() => onDeleteItem(ingredient)}
+                    disabled={deletingId === ingredient.id}
+                    aria-label={`${ingredient.name} 삭제`}
+                    className="p-1.5 -mr-1.5 text-gray-300 hover:text-[#C95252] disabled:opacity-40 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
                 </div>
               </div>
             );
@@ -123,7 +158,7 @@ const FridgeMainScreen = ({ fridgeItems, onGoToCamera, onDeleteAll, onGoToNotifi
           <span className="text-[10px] font-bold">냉장고</span>
         </div>
         <div 
-          onClick={() => alert('💡 아이디어톤 프로토타입: AI 맞춤형 [레시피 추천] 기능은 개발 예정입니다.')} 
+          onClick={onGoToRecipes}
           className="flex flex-col items-center gap-1 text-gray-400 w-1/4 cursor-pointer hover:text-[#5E9B56] transition-colors"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
